@@ -1,0 +1,196 @@
+
+    private static string Encrypt(string messageData, PadData padData){
+        string message = String.Empty;
+
+        //shuffle plaintext
+        messageData = fisherYatesShuffle(messageData, padData.shuffleBytes);
+
+        //encrypt message
+
+	    //generate mac from encrypted message
+        byte[] mac = GenerateHMACSHA512(padData.NonceBytes, Encoding.UTF8.GetBytes(messageData));
+
+        //format to xml string
+
+        return message;
+    }
+	
+    private static string Decrypt(MessageData messageData, PadData padData){
+        string message = string.Empty;
+        
+        if(VerifyHMACSHA512(Encoding.UTF8.GetBytes(padData.NonceBytes), Encoding.UTF8.GetBytes(messageData.Body), Encoding.UTF8.GetBytes(messageData.MAC))){
+            Console.WriteLine("MAC is valid.");
+        }else{
+            Console.WriteLine("MAC is not valid. Cypher text is corrupted or tampered with.");
+            return string.Empty;
+        }
+
+	    //decrypt message
+
+        //un-shuffle plaintext
+        fisherYatesShuffle(string input, byte[] shuffleBytes, bool reverse = false)
+
+        return message;
+    }
+
+    //secure delete padbook page
+
+    //mix strings
+
+    static string fisherYatesShuffle(input, byte[] shuffleBytes, bool reverse = false){
+        char[] characters = input.ToCharArray();
+        /*
+        if(reverse){
+            for (int i = characters.Length - 1; i > 0; i--){
+                int j = shuffleBytes[i] % (i + 1);
+
+                char temp = characters[i];
+                characters[i] = characters[j];
+                characters[j] = temp;
+            }
+        } else {
+            for (int i = 0; i < characters.Length - 1; i++){
+                int j = shuffleBytes[i] % (i + 1);
+
+                char temp = characters[i];
+                characters[i] = characters[j];
+                characters[j] = temp;
+            }
+        }
+        */
+        for (int i = reverse ? characters.Length - 1 : 0; reverse ? i > 0 : i < characters.Length - 1; i += reverse ? -1 : 1){
+            int j = shuffleBytes[i] % (i + 1);
+
+            char temp = characters[i];
+            characters[i] = characters[j];
+            characters[j] = temp;
+        }
+
+        return new string(characters);
+    }
+
+    private static int SecureDeleteFile(string filePath, int overwriteCount = 7){
+        try{
+            long fileSize = new FileInfo(filePath).Length;
+
+            for(int x = 0; x < overwriteCount; x++){
+                byte[] randomData = new byte[fileSize];
+
+                new Random().NextBytes(randomData);
+            
+                using (FileStream fs = new FileStream(filePath, FileMode.Create, FileAccess.Write)){
+                    fs.Write(randomData, 0, randomData.Length);
+                }
+            }
+            File.Delete(filePath);
+
+            return 0;
+        }catch (Exception ex){
+            Console.WriteLine($"Error deleting the file: {ex.Message}");
+            return 1;
+        }
+    }
+
+    private static PadData GetPadData(string padPath){
+        PadData padData = null;
+
+        try{
+            XmlDocument xmlDoc = new XmlDocument();
+            xmlDoc.Load(padPath);
+
+            int smallestId = int.MaxValue;
+
+            foreach (XmlNode padNode in xmlDoc.SelectNodes("/padbook/pad")){
+                int padId = Convert.ToInt32(padNode.Attributes["id"].Value);
+
+                if (padId < smallestId){
+                    smallestId = padId;
+
+                    padData = new PadData{
+                        Id = padId,
+                        NonceBytes = GetNodeValue(padNode, "nonceBytes"),
+                        shuffleBytes = GetNodeValue(padNode, "shuffleBytes"),
+                        MessageBytes = GetNodeValue(padNode, "messageBytes")
+                    };
+                }
+            }
+        }catch (Exception ex){
+            Console.WriteLine("Error reading padbook file: " + ex.Message);
+        }
+
+        return padData;
+    }
+
+    private static MessageData ReadEncryptedMessage(string messagePath){
+        MessageData messageData = null;
+
+        try{
+            XmlDocument xmlDoc = new XmlDocument();
+            xmlDoc.Load(messagePath);
+
+            XmlNode messageNode = xmlDoc.SelectSingleNode("/message");
+
+            if (messageNode != null){
+                messageData = new MessageData{
+                    MAC = GetNodeValue(messageNode, "mac"),
+                    Body = GetNodeValue(messageNode, "body")
+                };
+            }
+        }catch (Exception ex){
+            Console.WriteLine("Error reading encrypted message file: " + ex.Message);
+        }
+
+        return messageData;
+    }
+
+    private static string ReadPlaintextMessage(string messagePath){
+        string content = string.Empty;
+
+        try{
+            content = File.ReadAllText(messagePath);
+        }catch (Exception ex){
+            Console.WriteLine("Error reading text file: " + ex.Message);
+        }
+
+        return content;
+    }
+
+    private static int WriteToFile(string filePath, string content){
+        try{
+            using (StreamWriter writer = new StreamWriter(filePath)){
+                writer.Write(content);
+            }
+            Console.WriteLine("File written successfully: " + filePath);
+
+            return 0;
+        }catch (Exception ex){
+            Console.WriteLine($"Error writing to the file: {ex.Message}");
+
+            return 1;
+        }
+    }
+
+    static byte[] GetNodeValue(XmlNode parent, string nodeName){
+        XmlNode node = parent.SelectSingleNode(nodeName);
+        return (node != null) ? node.InnerText : null;
+    }
+
+    static byte[] GenerateHMACSHA512(byte[] key, byte[] data){
+        using (HMACSHA512 hmac = new HMACSHA512(key)){
+            return hmac.ComputeHash(data);
+        }
+    }
+
+    static bool VerifyHMACSHA512(byte[] key, byte[] data, byte[] expectedMac){
+        byte[] actualMac = GenerateHMACSHA512(key, data);
+
+        // Constant-time comparison to mitigate timing attacks
+        return CryptographicOperations.FixedTimeEquals(actualMac, expectedMac);
+    }
+
+    Nonce Bytes:
+9D61B6D1234DF91A0B06A31FAFB9731A46D437C334017A207EB801A6BB3801A9
+Shuffle Bytes:
+E43A25B5A3A9E2C6ADD35E4F4963C158DF6B9126E349BA940AE7ECDD0BEB116CC7B8CEB9C974C14751EBDCDDB872B1AAE45F129DE5996DF28C1191DADD8C54C4D372631EE225E8440FC8D660916A34316BED9966FE83E4B8C9ACAED26C251B07CFAAFA599AA2A0884078B3156A0C4B78     
+Message Bytes:
+B0C29CF9610736C956F5BE827C5753B891D5D9EA69366D8913F9F78E5B92554B88BD626CA7F7DF12D7D2E5382517186ACDCB29F6681B154EE8A5C5EC5FB842D101B926CB7ED2F910C6DA5E5F6A6B0B7657B71EB470E03000BCDF714F562D7C7965B437517068B326F3FADE442882B375
