@@ -62,7 +62,7 @@ Ensuring the secure deletion of files within this application poses a challenge 
 
 For the generation of pad data, it's crucial to derive it from a true random bit source. Pseudo-random number generators are not sufficient for this purpose due to their deterministic nature.
 
-For a robust solution, I recommend exploring my [RNG-RD](https://github.com/atjersland/RNG-RD) project, which focuses on providing a reliable source of true random bits.
+Explore my [RNG-RD](https://github.com/atjersland/RNG-RD) project for an example of a Random Bit Generator(RBG).
 
 ## File Structures
 ```
